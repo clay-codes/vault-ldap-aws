@@ -1,4 +1,4 @@
-package awsfns
+package cloud
 
 import (
 	"fmt"

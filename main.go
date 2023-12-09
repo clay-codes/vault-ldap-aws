@@ -6,15 +6,15 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/clay-codes/aws-ldap/awsfns"
+	"github.com/clay-codes/aws-ldap/cloud"
 )
 
 func main() {
 	// Initialize a session in us-west-2 that the SDK will use to load credentials
 	// from the shared credentials file ~/.aws/credentials.
-	if _, err := awsfns.Auth(); err != nil {
-		fmt.Println("Error:", err)
-		return
+	if _, err := cloud.Auth(); err != nil {
+		fmt.Println("Error authing: ")
+		log.Fatal(err)
 	}
 
 	sess, err := session.NewSession(&aws.Config{
@@ -23,7 +23,23 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	awsfns.GetEC2ID(sess)
+
+	imgID, err := cloud.GetImgID(sess)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(imgID)
+
+	str, err := cloud.CreateKP(sess)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(str)
+
+	err = CreateSG(sess, groupName, vpcID)
+	if err != nil {
+		panic(err)
+	}
 
 }
 

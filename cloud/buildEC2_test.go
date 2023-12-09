@@ -1,4 +1,4 @@
-package awsfns
+package cloud
 
 import (
 	"fmt"
@@ -6,6 +6,10 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/aws/aws-sdk-go/aws" // AWS-specific configurations
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAuth(t *testing.T) {
@@ -82,4 +86,20 @@ func TestAuth(t *testing.T) {
 	//}
 
 	// Additional assertions can be added here as needed
+}
+
+func TestGetImgID(t *testing.T) {
+	// Create a new AWS session with default configuration
+	Auth()
+	sess, err := session.NewSession(&aws.Config{})
+	if err != nil {
+		t.Fatalf("Failed to create AWS session: %v", err)
+	}
+
+	// Call the function under test
+	amiID, err := GetImgID(sess)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotEmpty(t, amiID, "AMI ID should not be empty")
 }
