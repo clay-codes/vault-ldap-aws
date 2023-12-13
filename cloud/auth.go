@@ -2,15 +2,18 @@ package cloud
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-func Auth() (string, error) {
+var isAuthed = false
+
+func Auth() error {
 	cmd := exec.Command("bash", "-c", "doormat login")
 	if err := cmd.Run(); err != nil {
-		return "doormat CLI not installed: ", err
+		return fmt.Errorf("doormat CLI not installed: %v", err)
 	}
 
 	// getting export statements from doormat aws export
@@ -18,7 +21,7 @@ func Auth() (string, error) {
 	cmd = exec.Command("bash", "-c", "doormat aws export --role $(doormat aws list | tail -n 1 | cut -b 2-)")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "doormat CLI installed, but now issue with AWS creds: ", err
+		return fmt.Errorf("doormat CLI installed, but now issue with AWS creds: %s", err)
 	}
 
 	// Splitting output by ' && ' to get individual variable declaration commands into an array
@@ -34,9 +37,19 @@ func Auth() (string, error) {
 		if len(keyValue) == 2 {
 			key, value := keyValue[0], keyValue[1]
 			if err := os.Setenv(key, value); err != nil {
-				fmt.Printf("Error setting environment variable %s: %v\n", key, err)
+				return fmt.Errorf("error setting environment variable %s: %v", key, err)
 			}
 		}
 	}
-	return "auth succeeded", nil
+	isAuthed = true
+	return nil
+}
+
+func CheckAuth() {
+	if !isAuthed {
+		err := Auth()
+		if err != nil {
+			log.Fatalf("was not authed initially--error calling Auth() from checkAuth(): %v", err)
+		}
+	}
 }
