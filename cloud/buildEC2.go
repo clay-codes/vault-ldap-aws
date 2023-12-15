@@ -1,14 +1,11 @@
 package cloud
 
 import (
-	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws" // AWS-specific configurations
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
@@ -18,71 +15,28 @@ import (
 // the necessary parameters for building an EC2 instance are: image ID, instance type, key name, and security group
 // which are retrieved in the below
 
-type AWSSession struct {
-	session *session.Session
-	mu      sync.Mutex
-}
-
-var instance *AWSSession
-
-// InitializeAWSSession creates and stores a new AWS session if it doesn't exist.
-func CreateSession(region string) error {
-	instance = &AWSSession{}
-	instance.mu.Lock()
-	defer instance.mu.Unlock()
-	if instance.session == nil {
-		sess, err := session.NewSession(&aws.Config{
-			Region: aws.String(region),
-		})
-		if err != nil {
-			return err
-		}
-		instance.session = sess
-	}
-	return nil
-}
-
-// GetSession returns the entire AWS session struct.
-func GetSession() *AWSSession {
-	if instance == nil {
-		CreateSession("us-west-2")
-		log.Println("no current session previously, so CreateSession called with default region")
-	}
-	return instance
-}
-
-// returns session.session needed by the aws sdk
-func (s *AWSSession) GetAWSSession() *session.Session {
-	return instance.session
-}
-
-func GetImgID(sess *session.Session) (string, error) {
-	ssmSvc := ssm.New(sess)
-
+func GetImgID() (string, error) {
 	input := &ssm.GetParameterInput{
 		Name: aws.String("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"),
 	}
 
-	result, err := ssmSvc.GetParameter(input)
+	result, err := svc.ssm.GetParameter(input)
 	//aws-specific error library https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/handling-errors.html
 	if err != nil {
-		return "Error  getting image-id", err
+		return "", err
 	}
 
 	return *result.Parameter.Value, nil
 }
 
-func CreateKP(sess *session.Session) (string, error) {
-	// Initialize a session in us-west-2 that the SDK will use to load credentials
-	svc := ec2.New(sess)
-
+func CreateKP() (string, error) {
 	// Create the key pair
 	input := &ec2.CreateKeyPairInput{
 		KeyName: aws.String("vault-EC2-kp"),
 		KeyType: aws.String("rsa"),
 	}
 
-	result, err := svc.CreateKeyPair(input)
+	result, err := svc.ec2.CreateKeyPair(input)
 	if err != nil {
 		return "Error creating key pair:", err
 	}
@@ -108,34 +62,32 @@ func CreateKP(sess *session.Session) (string, error) {
 	return "Created key pair", nil
 }
 
-func GetVPC(sess *session.Session) (*string, error) {
-
-	svc := ec2.New(sess)
-
-	vpcs, err := svc.DescribeVpcs(nil)
+func GetVPC() (string, error) {
+	vpcs, err := svc.ec2.DescribeVpcs(nil)
 	if err != nil {
-		fmt.Println("Error describing VPCs: ")
-		return nil, err
+		return "", fmt.Errorf("error when calling ec2.DescribeVpcs: %w", err)
 	}
 
 	// Select the first VPC
 	vpcID := vpcs.Vpcs[0].VpcId
 
-	return vpcID, nil
+	return *vpcID, nil
 }
 
-func CreateSG(sess *session.Session, vpcID *string, ports []int64) (string, error) {
+func CreateSG(ports []int64) (string, error) {
 	// Create EC2 client
-	svc := ec2.New(sess)
-
+	vpcID, err := GetVPC()
+	if err != nil {
+		return "", err
+	}
 	// Define the security group parameters
 	createSGInput := &ec2.CreateSecurityGroupInput{
 		GroupName:   aws.String("EC2-Vault-SG"),
-		Description: aws.String("allowing all traffic in/out"),
-		VpcId:       aws.String(*vpcID), // Replace with your VPC ID
+		Description: aws.String("sg for vault instance"),
+		VpcId:       aws.String(vpcID), // Replace with your VPC ID
 	}
 
-	createSGOutput, err := svc.CreateSecurityGroup(createSGInput)
+	createSGOutput, err := svc.ec2.CreateSecurityGroup(createSGInput)
 	if err != nil {
 		return "", fmt.Errorf("error creating security group: %v", err)
 	}
@@ -158,7 +110,7 @@ func CreateSG(sess *session.Session, vpcID *string, ports []int64) (string, erro
 		},
 	}
 
-	_, err = svc.AuthorizeSecurityGroupIngress(authorizeIngressInput)
+	_, err = svc.ec2.AuthorizeSecurityGroupIngress(authorizeIngressInput)
 	if err != nil {
 		return "", fmt.Errorf("error authorizing security group ingress: %v", err)
 	}
@@ -167,19 +119,20 @@ func CreateSG(sess *session.Session, vpcID *string, ports []int64) (string, erro
 		GroupId: createSGOutput.GroupId,
 		IpPermissions: []*ec2.IpPermission{
 			{
-				IpProtocol: aws.String("-1"),
+				IpProtocol: aws.String("tcp"),
 				FromPort:   aws.Int64(0),
 				ToPort:     aws.Int64(65535),
 				IpRanges: []*ec2.IpRange{
 					{
-						CidrIp: aws.String("0.0.0.0/0"),
+						CidrIp:      aws.String("0.0.0.0/0"),
+						Description: aws.String("for ec2-vault-sg-egress"),
 					},
 				},
 			},
 		},
 	}
 
-	_, err = svc.AuthorizeSecurityGroupEgress(authorizeEgressInput)
+	_, err = svc.ec2.AuthorizeSecurityGroupEgress(authorizeEgressInput)
 	if err != nil {
 		return "", fmt.Errorf("error authorizing security group egress: %v", err)
 	}
@@ -187,10 +140,31 @@ func CreateSG(sess *session.Session, vpcID *string, ports []int64) (string, erro
 	return *createSGOutput.GroupId, nil
 }
 
-func CreateInstProf(sess *session.Session) error {
-	// Create an IAM client
-	svc := iam.New(sess)
+func GetSGID() ([]string, error) {
+	// ec2Svc := ec2.New(sess)
+	input := &ec2.DescribeSecurityGroupsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("group-name"),
+				Values: []*string{aws.String("EC2-Vault-SG")},
+			},
+		},
+	}
 
+	result, err := svc.ec2.DescribeSecurityGroups(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var groupIds []string
+	for _, group := range result.SecurityGroups {
+		groupIds = append(groupIds, *group.GroupId)
+	}
+
+	return groupIds, nil
+}
+
+func CreateInstProf() error {
 	// Define the trust policy document
 	trustPolicyDocument := `{
 		"Version": "2012-10-17",
@@ -210,7 +184,7 @@ func CreateInstProf(sess *session.Session) error {
 		RoleName:                 aws.String("vault-ec2-metadata-role"),
 		AssumeRolePolicyDocument: aws.String(trustPolicyDocument),
 	}
-	_, err := svc.CreateRole(createRoleInput)
+	_, err := svc.iam.CreateRole(createRoleInput)
 	if err != nil {
 		return fmt.Errorf("error: %w", err)
 	}
@@ -219,7 +193,7 @@ func CreateInstProf(sess *session.Session) error {
 	createInstanceProfileInput := &iam.CreateInstanceProfileInput{
 		InstanceProfileName: aws.String("vault-ec2-InstProf"),
 	}
-	_, err = svc.CreateInstanceProfile(createInstanceProfileInput)
+	_, err = svc.iam.CreateInstanceProfile(createInstanceProfileInput)
 	if err != nil {
 		return fmt.Errorf("error creating instance profile: %w", err)
 	}
@@ -229,7 +203,7 @@ func CreateInstProf(sess *session.Session) error {
 		InstanceProfileName: aws.String("vault-ec2-InstProf"),
 		RoleName:            aws.String("vault-ec2-metadata-role"),
 	}
-	_, err = svc.AddRoleToInstanceProfile(addRoleToInstanceProfileInput)
+	_, err = svc.iam.AddRoleToInstanceProfile(addRoleToInstanceProfileInput)
 	if err != nil {
 		return fmt.Errorf("error adding role to instance profile: %w", err)
 	}
@@ -237,9 +211,11 @@ func CreateInstProf(sess *session.Session) error {
 	return nil
 }
 
-func GetSubnetID(sess *session.Session, vpcID string) (string, error) {
-	ec2Svc := ec2.New(sess)
-
+func GetSubnetID() (string, error) {
+	vpcID, err := GetVPC()
+	if err != nil {
+		return "", err
+	}
 	// Describe subnets with the specified VPC ID
 	input := &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
@@ -250,14 +226,10 @@ func GetSubnetID(sess *session.Session, vpcID string) (string, error) {
 		},
 	}
 
-	result, err := ec2Svc.DescribeSubnets(input)
+	result, err := svc.ec2.DescribeSubnets(input)
 	if err != nil {
 		return "", fmt.Errorf("error describing subnets: %w", err)
 	}
-	if err != nil {
-		return "", fmt.Errorf("error describing subnets: %w", err)
-	}
-
 	// Check if there is at least one subnet and get its ID
 	if len(result.Subnets) == 0 {
 		return "", fmt.Errorf("no subnets found for given VPC ID: %s", vpcID)
@@ -265,15 +237,49 @@ func GetSubnetID(sess *session.Session, vpcID string) (string, error) {
 	return *result.Subnets[0].SubnetId, nil
 }
 
-func BuildEC2(sess *session.Session, sgID []string, imageID, subnetID string) (string, error) {
-	ec2Svc := ec2.New(sess)
+// func waitInstancePending(instanceID string) error {
+// 	for {
+// 		input := &ec2.DescribeInstancesInput{
+// 			InstanceIds: []*string{aws.String(instanceID)},
+// 		}
+
+// 		result, err := svc.ec2.DescribeInstances(input)
+// 		if err != nil {
+// 			return err
+// 		}
+
+// 		state := result.Reservations[0].Instances[0].State.Name
+// 		if *state == ec2.InstanceStateNamePending {
+// 			break
+// 		}
+
+// 		time.Sleep(15 * time.Second) // Wait for 15 seconds before checking again
+// 	}
+
+// 	return nil
+// }
+
+func BuildEC2() (string, error) {
 
 	// Read user data from file
-	userData, err := os.ReadFile("user-data.txt")
+	// _, err := os.ReadFile("user-data.txt")
+	// if err != nil {
+	// 	log.Printf("error reading user data file: %v", err)
+	// 	//userData = []byte("")
+	// }
+	// encodedUserData := base64.StdEncoding.EncodeToString(userData)
+	imageID, err := GetImgID()
 	if err != nil {
-		return "", fmt.Errorf("error reading user data file: %v", err)
+		log.Printf("error getting image ID: %v", err)
 	}
-	encodedUserData := base64.StdEncoding.EncodeToString(userData)
+	sgID, err := GetSGID()
+	if err != nil {
+		log.Printf("error getting security group ID: %v", err)
+	}
+	subnetID, err := GetSubnetID()
+	if err != nil {
+		log.Printf("error getting subnet ID: %v", err)
+	}
 
 	// Run Instances
 	input := &ec2.RunInstancesInput{
@@ -285,7 +291,7 @@ func BuildEC2(sess *session.Session, sgID []string, imageID, subnetID string) (s
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 			Name: aws.String("vault-ec2-InstProf"),
 		},
-		UserData: aws.String(encodedUserData),
+		//UserData: aws.String(encodedUserData),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String("instance"),
@@ -301,15 +307,73 @@ func BuildEC2(sess *session.Session, sgID []string, imageID, subnetID string) (s
 		MaxCount: aws.Int64(1),
 	}
 
-	result, err := ec2Svc.RunInstances(input)
+	result, err := svc.ec2.RunInstances(input)
 	if err != nil {
 		return "", fmt.Errorf("error running instances: %v", err)
 	}
 
 	// Assuming only one instance is created
 	if len(result.Instances) > 0 {
+		// waitInstancePending(*result.Instances[0].InstanceId)
 		return *result.Instances[0].InstanceId, nil
 	}
 
 	return "", fmt.Errorf("no instance was created")
+}
+
+//unused function but may be useful in the future
+func createAlternateSubnet() (string, error) {
+	// Describe subnets to get the AZ of the first subnet
+	vpcID, err := GetVPC()
+	if err != nil {
+		return "", fmt.Errorf("failed to get VPC for creating subnet: %s", err)
+	}
+
+	subnetsOutput, err := svc.ec2.DescribeSubnets(&ec2.DescribeSubnetsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("vpc-id"),
+				Values: []*string{aws.String(vpcID)},
+			},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	az := *subnetsOutput.Subnets[0].AvailabilityZone
+	region := az[:len(az)-1]
+	azChar := az[len(az)-1:]
+	var newAzChar string
+	if azChar == "a" {
+		newAzChar = "b"
+	} else {
+		newAzChar = "a"
+	}
+	newAz := region + newAzChar
+
+	// Describe VPCs to get the CIDR block
+	vpcsOutput, err := svc.ec2.DescribeVpcs(&ec2.DescribeVpcsInput{
+		VpcIds: []*string{aws.String(vpcID)},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	cidrBlock := *vpcsOutput.Vpcs[0].CidrBlock
+	cidrPrefix := cidrBlock[:6]
+	newSubnetCidr := fmt.Sprintf("%s.255.208/28", cidrPrefix)
+
+	// Create the new subnet
+	newSubnetOutput, err := svc.ec2.CreateSubnet(&ec2.CreateSubnetInput{
+		VpcId:            aws.String(vpcID),
+		AvailabilityZone: aws.String(newAz),
+		CidrBlock:        aws.String(newSubnetCidr),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return *newSubnetOutput.Subnet.SubnetId, nil
+
 }

@@ -4,16 +4,12 @@ import (
 	"os"
 	"testing"
 
-	// AWS-specific configurations
-
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTerminateEC2Instance(t *testing.T) {
 	CheckAuth()
-	sess := GetSession().GetAWSSession()
-
-	err := TerminateEC2Instance(sess, os.Getenv("EC2_ID"))
+	err := TerminateEC2Instance()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,18 +18,19 @@ func TestTerminateEC2Instance(t *testing.T) {
 }
 func TestDeleteKeyPair(t *testing.T) {
 	CheckAuth()
-	sess := GetSession().GetAWSSession()
-
-	err := DeleteKeyPair(sess)
+	err := DeleteKeyPair()
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Remove("../key.pem"); err != nil {
 		t.Fatal(err)
 	}
 }
 func TestDeleSecurityGroup(t *testing.T) {
 	CheckAuth()
-	sess := GetSession().GetAWSSession()
 
-	err := DeleteSecurityGroup(sess)
+	err := DeleteSecurityGroup()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,8 +42,7 @@ func TestDeleSecurityGroup(t *testing.T) {
 
 func TestDetachRoleFromInstanceProfile(t *testing.T) {
 	CheckAuth()
-	sess := GetSession().GetAWSSession()
-	err := DetachRoleFromInstanceProfile(sess)
+	err := DetachRoleFromInstanceProfile()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,8 +50,7 @@ func TestDetachRoleFromInstanceProfile(t *testing.T) {
 }
 func TestDeleteInstanceProfile(t *testing.T) {
 	CheckAuth()
-	sess := GetSession().GetAWSSession()
-	err := DeleteInstanceProfile(sess)
+	err := DeleteInstanceProfile()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,8 +58,7 @@ func TestDeleteInstanceProfile(t *testing.T) {
 }
 func TestDeleteRole(t *testing.T) {
 	CheckAuth()
-	sess := GetSession().GetAWSSession()
-	err := DeleteRole(sess)
+	err := DeleteRole()
 	if err != nil {
 		t.Fatal(err)
 	}

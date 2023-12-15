@@ -2,34 +2,83 @@ package cloud
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 )
 
-// ... [Existing functions] ...
+func getEC2ID() (string, error) {
+	input := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("tag:Name"),
+				Values: []*string{aws.String("vault-ad-server")},
+			},
+			{
+				Name:   aws.String("instance-state-name"),
+				Values: []*string{aws.String(ec2.InstanceStateNameRunning), aws.String(ec2.InstanceStateNamePending)},
+			},
+		},
+	}
 
-// CleanupResources performs the cleanup of all created resources
+	result, err := svc.ec2.DescribeInstances(input)
+	if err != nil {
+		return "", err
+	}
+
+	for _, reservation := range result.Reservations {
+		for _, instance := range reservation.Instances {
+			return *instance.InstanceId, nil
+		}
+	}
+
+	return "", fmt.Errorf("no instances with the specified name in running or pending state")
+}
+
+func waitForInstanceTermination(instanceID string) error {
+	for {
+		input := &ec2.DescribeInstancesInput{
+			InstanceIds: []*string{aws.String(instanceID)},
+		}
+
+		result, err := svc.ec2.DescribeInstances(input)
+		if err != nil {
+			return err
+		}
+
+		state := result.Reservations[0].Instances[0].State.Name
+		if *state == ec2.InstanceStateNameTerminated {
+			break
+		}
+
+		time.Sleep(15 * time.Second) // Wait for 15 seconds before checking again
+	}
+	return nil
+}
 
 // terminateEC2Instance terminates the specified EC2 instance
-func TerminateEC2Instance(sess *session.Session, instanceID string) error {
-	ec2Svc := ec2.New(sess)
-	_, err := ec2Svc.TerminateInstances(&ec2.TerminateInstancesInput{
+
+func TerminateEC2Instance() error {
+	instanceID, err := getEC2ID()
+	if err != nil {
+		return fmt.Errorf("error in getEC2ID(): %v", err)
+	}
+	_, err = svc.ec2.TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: []*string{aws.String(instanceID)},
 	})
 	if err != nil {
 		return fmt.Errorf("error terminating EC2 instance: %v", err)
 	}
+	waitForInstanceTermination(instanceID)
 	fmt.Println("EC2 instance terminated:", instanceID)
 	return nil
 }
 
 // deleteKeyPair deletes the specified key pair
-func DeleteKeyPair(sess *session.Session) error {
-	ec2Svc := ec2.New(sess)
-	_, err := ec2Svc.DeleteKeyPair(&ec2.DeleteKeyPairInput{
+func DeleteKeyPair() error {
+	_, err := svc.ec2.DeleteKeyPair(&ec2.DeleteKeyPairInput{
 		KeyName: aws.String("vault-EC2-kp"),
 	})
 	if err != nil {
@@ -39,51 +88,9 @@ func DeleteKeyPair(sess *session.Session) error {
 	return nil
 }
 
-func getSGID(sess *session.Session) (string, error) {
-	ec2Svc := ec2.New(sess)
-	input := &ec2.DescribeSecurityGroupsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("group-name"),
-				Values: []*string{aws.String("EC2-Vault-SG")},
-			},
-		},
-	}
-
-	result, err := ec2Svc.DescribeSecurityGroups(input)
-	if err != nil {
-		return "", err
-	}
-
-	var groupIds []string
-	for _, group := range result.SecurityGroups {
-		groupIds = append(groupIds, *group.GroupId)
-	}
-
-	return groupIds[0], nil
-}
-
-// deleteSecurityGroup deletes the specified security group
-func DeleteSecurityGroup(sess *session.Session) error {
-	ec2Svc := ec2.New(sess)
-	sgID, err := getSGID(sess)
-	if err != nil {
-		return fmt.Errorf("error in getSGID(): %v", err)
-	}
-	_, err = ec2Svc.DeleteSecurityGroup(&ec2.DeleteSecurityGroupInput{
-		GroupId: aws.String(sgID),
-	})
-	if err != nil {
-		return fmt.Errorf("error deleting security group: %v", err)
-	}
-	fmt.Println("Security group deleted:", sgID)
-	return nil
-}
-
 // detachRoleFromInstanceProfile detaches the specified role from the instance profile
-func DetachRoleFromInstanceProfile(sess *session.Session) error {
-	iamSvc := iam.New(sess)
-	_, err := iamSvc.RemoveRoleFromInstanceProfile(&iam.RemoveRoleFromInstanceProfileInput{
+func DetachRoleFromInstanceProfile() error {
+	_, err := svc.iam.RemoveRoleFromInstanceProfile(&iam.RemoveRoleFromInstanceProfileInput{
 		InstanceProfileName: aws.String("vault-ec2-InstProf"),
 		RoleName:            aws.String("vault-ec2-metadata-role"),
 	})
@@ -95,9 +102,8 @@ func DetachRoleFromInstanceProfile(sess *session.Session) error {
 }
 
 // deleteInstanceProfile deletes the specified instance profile
-func DeleteInstanceProfile(sess *session.Session) error {
-	iamSvc := iam.New(sess)
-	_, err := iamSvc.DeleteInstanceProfile(&iam.DeleteInstanceProfileInput{
+func DeleteInstanceProfile() error {
+	_, err := svc.iam.DeleteInstanceProfile(&iam.DeleteInstanceProfileInput{
 		InstanceProfileName: aws.String("vault-ec2-InstProf"),
 	})
 	if err != nil {
@@ -108,14 +114,29 @@ func DeleteInstanceProfile(sess *session.Session) error {
 }
 
 // deleteRole deletes the specified IAM role
-func DeleteRole(sess *session.Session) error {
-	iamSvc := iam.New(sess)
-	_, err := iamSvc.DeleteRole(&iam.DeleteRoleInput{
+func DeleteRole() error {
+	_, err := svc.iam.DeleteRole(&iam.DeleteRoleInput{
 		RoleName: aws.String("vault-ec2-metadata-role"),
 	})
 	if err != nil {
 		return fmt.Errorf("error deleting role: %v", err)
 	}
 	fmt.Println("IAM role deleted:", "vault-ec2-metadata-role")
+	return nil
+}
+
+// deleteSecurityGroup deletes the specified security group
+func DeleteSecurityGroup() error {
+	sgID, err := GetSGID()
+	if err != nil {
+		return fmt.Errorf("error in getSGID(): %v", err)
+	}
+	_, err = svc.ec2.DeleteSecurityGroup(&ec2.DeleteSecurityGroupInput{
+		GroupId: aws.String(sgID[0]),
+	})
+	if err != nil {
+		return fmt.Errorf("error deleting security group: %v", err)
+	}
+	fmt.Println("Security group deleted:", sgID)
 	return nil
 }

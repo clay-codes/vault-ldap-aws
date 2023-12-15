@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws" // AWS-specific configurations
-	"github.com/aws/aws-sdk-go/aws/session"
+	// AWS-specific configurations
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -90,16 +90,53 @@ func TestAuth(t *testing.T) {
 
 func TestGetImgID(t *testing.T) {
 	// Create a new AWS session with default configuration
-	Auth()
-	sess, err := session.NewSession(&aws.Config{})
-	if err != nil {
-		t.Fatalf("Failed to create AWS session: %v", err)
-	}
-
+	CheckAuth()
 	// Call the function under test
-	amiID, err := GetImgID(sess)
-
+	amiID, err := GetImgID()
+	os.Setenv("AMI_ID", amiID)
+	fmt.Println(os.Getenv("AMI_ID"))
 	// Assertions
 	assert.NoError(t, err)
 	assert.NotEmpty(t, amiID, "AMI ID should not be empty")
+}
+
+func TestGetVPC(t *testing.T) {
+	CheckAuth()
+	// Call the function under test
+	vpcID, err := GetVPC()
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotEmpty(t, vpcID, "VPC ID should not be empty")
+}
+
+func TestCreateSG(t *testing.T) {
+	CheckAuth()
+	// Call the function under test
+	sgID, err := CreateSG([]int64{22, 8200, 8201})
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotEmpty(t, sgID, "Security Group ID should not be empty")
+}
+
+func TestGetSubnetID(t *testing.T) {
+	CheckAuth()
+	// Call the function under test
+	snID, err := GetSubnetID()
+	fmt.Println(os.Getenv("SUBNET_ID"))
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotEmpty(t, snID, "Subnet ID should not be empty")
+}
+
+func TestBuildEC2(t *testing.T) {
+	CheckAuth()
+
+	// Call the function under test
+	ec2ID, err := BuildEC2()
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotEmpty(t, ec2ID, "EC2 ID should not be empty")
 }

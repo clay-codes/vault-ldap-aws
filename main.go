@@ -5,76 +5,62 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/clay-codes/aws-ldap/cloud"
 )
 
-func bootStrap(sess *session.Session) {
-	imgID, err := cloud.GetImgID(sess)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	str, err := cloud.CreateKP(sess)
+// var EC2ID = ""
+func bootStrap() {
+	str, err := cloud.CreateKP()
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(str)
 
-	vpcID, err := cloud.GetVPC(sess)
+	_, err = cloud.CreateSG([]int64{22, 8200, 8201})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sgid, err := cloud.CreateSG(sess, vpcID, []int64{22, 8200, 8201})
+	err = cloud.CreateInstProf()
 	if err != nil {
 		log.Fatal(err)
 	}
-	os.Setenv("SGID", sgid)
+	// wait for instance profile to be created
+	time.Sleep(10 * time.Second)
 
-	err = cloud.CreateInstProf(sess)
+	ec2ID, err := cloud.BuildEC2()
+	// EC2ID = ec2ID
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	snID, err := cloud.GetSubnetID(sess, *vpcID)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	ec2ID, err := cloud.BuildEC2(sess, []string{sgid}, imgID, snID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	os.Setenv("EC2_ID", ec2ID)
-	fmt.Printf("EC2ID:%s\n", ec2ID)
+	fmt.Printf("EC2ID: %s", ec2ID)
 }
 
-func cleanupCloud(sess *session.Session, instanceID string, sgID string) error {
+func CleanupCloud() {
 	if err := os.Remove("key.pem"); err != nil {
-		return fmt.Errorf("error deleting key.pem file: %v", err)
+		fmt.Printf("error deleting key.pem file: %v", err)
 	}
-	if err := cloud.TerminateEC2Instance(sess, os.Getenv("EC2_ID")); err != nil {
-		return fmt.Errorf("error terminating EC2 instance: %v", err)
+	if err := cloud.TerminateEC2Instance(); err != nil {
+		fmt.Printf("error terminating EC2 instance: %v", err)
 	}
-	if err := cloud.DeleteKeyPair(sess); err != nil {
-		return fmt.Errorf("error deleting key pair: %v", err)
+	if err := cloud.DeleteKeyPair(); err != nil {
+		fmt.Printf("error deleting key pair: %v", err)
 	}
-
-	if err := cloud.DeleteSecurityGroup(sess); err != nil {
-		return fmt.Errorf("error deleting security group: %v", err)
+	if err := cloud.DetachRoleFromInstanceProfile(); err != nil {
+		fmt.Printf("error detaching role from instance profile: %v", err)
 	}
-	if err := cloud.DetachRoleFromInstanceProfile(sess); err != nil {
-		return fmt.Errorf("error detaching role from instance profile: %v", err)
+	fmt.Println("role detached from instance profile")
+	if err := cloud.DeleteInstanceProfile(); err != nil {
+		fmt.Printf("error deleting instance profile: %v", err)
 	}
-	if err := cloud.DeleteInstanceProfile(sess); err != nil {
-		return fmt.Errorf("error deleting instance profile: %v", err)
+	if err := cloud.DeleteRole(); err != nil {
+		fmt.Printf("error deleting role: %v", err)
 	}
-	if err := cloud.DeleteRole(sess); err != nil {
-		return fmt.Errorf("error deleting role: %v", err)
+	if err := cloud.DeleteSecurityGroup(); err != nil {
+		fmt.Printf("error deleting security group: %v", err)
 	}
-	return nil
 }
 
 // run the main function
@@ -85,20 +71,26 @@ func main() {
 	//set flag to run cleanup
 	cloud.CheckAuth()
 
-	cleanupFlag := flag.Bool("cleanup", false, "Set this flag to run the cleanup process")
-
-	flag.Parse()
-
-	err := cloud.CreateSession("us-west-2")
-	if err != nil {
+	// creating a session
+	if err := cloud.CreateSession("us-west-2"); err != nil {
 		log.Fatal(err)
 	}
 
+	// getting session
 	sess := cloud.GetSession().GetAWSSession()
 
+	// creating needed services from session
+	if err := cloud.CreateServices(sess); err != nil {
+		log.Fatal(err)
+	}
+
+	cleanupFlag := flag.Bool("cleanup", false, "Set this flag to false to run the cleanup process")
+
+	flag.Parse()
+
 	if *cleanupFlag {
-		bootStrap(sess)
+		bootStrap()
 	} else {
-		cleanupCloud(sess, os.Getenv("EC2_ID"), os.Getenv("SGID"))
+		CleanupCloud()
 	}
 }
