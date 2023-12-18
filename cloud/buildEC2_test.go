@@ -91,6 +91,13 @@ func TestAuth(t *testing.T) {
 func TestGetImgID(t *testing.T) {
 	// Create a new AWS session with default configuration
 	CheckAuth()
+	CreateSession("us-west-2")
+	err := GetSession().CreateServices()
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
+	// Create new EC2 client
+
 	// Call the function under test
 	amiID, err := GetImgID()
 	os.Setenv("AMI_ID", amiID)
@@ -112,6 +119,11 @@ func TestGetVPC(t *testing.T) {
 func TestCreateSG(t *testing.T) {
 	CheckAuth()
 	// Call the function under test
+	CreateSession("us-west-2")
+	err := GetSession().CreateServices("ec2")
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
 	sgID, err := CreateSG([]int64{22, 8200, 8201})
 
 	// Assertions

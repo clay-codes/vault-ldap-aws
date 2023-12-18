@@ -48,13 +48,29 @@ func CreateSession(region string) error {
 	return err
 }
 
-func CreateServices(sess *session.Session) error {
+func (s *AWSSession) CreateServices(serviceType ...string) error {
+	sess := s.GetAWSSession()
+
 	createServsOnce.Do(func() {
-		svc = &Service{
-			ec2: ec2.New(sess),
-			iam: iam.New(sess),
-			ssm: ssm.New(sess),
+		svc = &Service{}
+
+		if len(serviceType) == 0 {
+			// Initialize all services if no specific service is provided
+			svc.ec2 = ec2.New(sess)
+			svc.iam = iam.New(sess)
+			svc.ssm = ssm.New(sess)
+		} else {
+			// Initialize only the first specified service
+			switch serviceType[0] {
+			case "ec2":
+				svc.ec2 = ec2.New(sess)
+			case "iam":
+				svc.iam = iam.New(sess)
+			case "ssm":
+				svc.ssm = ssm.New(sess)
+			}
 		}
 	})
+
 	return nil
 }

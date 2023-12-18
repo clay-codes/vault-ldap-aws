@@ -51,7 +51,6 @@ func CleanupCloud() {
 	if err := cloud.DetachRoleFromInstanceProfile(); err != nil {
 		fmt.Printf("error detaching role from instance profile: %v", err)
 	}
-	fmt.Println("role detached from instance profile")
 	if err := cloud.DeleteInstanceProfile(); err != nil {
 		fmt.Printf("error deleting instance profile: %v", err)
 	}
@@ -77,10 +76,10 @@ func main() {
 	}
 
 	// getting session
-	sess := cloud.GetSession().GetAWSSession()
+	// sess := cloud.GetSession().GetAWSSession()
 
 	// creating needed services from session
-	if err := cloud.CreateServices(sess); err != nil {
+	if err := cloud.GetSession().CreateServices(); err != nil {
 		log.Fatal(err)
 	}
 

@@ -14,10 +14,11 @@ import (
 // buildEC2.go contains functions for building an EC2 instance
 // the necessary parameters for building an EC2 instance are: image ID, instance type, key name, and security group
 // which are retrieved in the below
-
+// windows server Name: /aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base-2023.11.15 (ami-091f300417a06d788)
+// linux Name: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
 func GetImgID() (string, error) {
 	input := &ssm.GetParameterInput{
-		Name: aws.String("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"),
+		Name: aws.String("/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base"),
 	}
 
 	result, err := svc.ssm.GetParameter(input)
@@ -99,11 +100,12 @@ func CreateSG(ports []int64) (string, error) {
 		IpPermissions: []*ec2.IpPermission{
 			{
 				IpProtocol: aws.String("-1"),
-				FromPort:   aws.Int64(0),
-				ToPort:     aws.Int64(65535),
+				// FromPort:   aws.Int64(0),
+				// ToPort:     aws.Int64(65535),
 				IpRanges: []*ec2.IpRange{
 					{
-						CidrIp: aws.String("0.0.0.0/0"),
+						CidrIp:      aws.String("0.0.0.0/0"),
+						Description: aws.String("for ec2-vault-sg-ingress"),
 					},
 				},
 			},
@@ -114,29 +116,29 @@ func CreateSG(ports []int64) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error authorizing security group ingress: %v", err)
 	}
-	// Authorize all outbound traffic
-	authorizeEgressInput := &ec2.AuthorizeSecurityGroupEgressInput{
-		GroupId: createSGOutput.GroupId,
-		IpPermissions: []*ec2.IpPermission{
-			{
-				IpProtocol: aws.String("tcp"),
-				FromPort:   aws.Int64(0),
-				ToPort:     aws.Int64(65535),
-				IpRanges: []*ec2.IpRange{
-					{
-						CidrIp:      aws.String("0.0.0.0/0"),
-						Description: aws.String("for ec2-vault-sg-egress"),
-					},
-				},
-			},
-		},
-	}
+	// COMMENTED OUT BC AWS ALREADY HAS A DEFAULT EGRESS RULE ALLOWING ALL TRAFFIC
+	// authorizeEgressInput := &ec2.AuthorizeSecurityGroupEgressInput{
+	// 	GroupId: createSGOutput.GroupId,
+	// 	IpPermissions: []*ec2.IpPermission{
+	// 		{
+	// 			IpProtocol: aws.String("-1"),
+	// 			//FromPort:   aws.Int64(0),
+	// 			//ToPort:     aws.Int64(65535),
+	// 			IpRanges: []*ec2.IpRange{
+	// 				{
+	// 					CidrIp:      aws.String("0.0.0.0/0"),
+	// 					Description: aws.String("for ec2-vault-sg-egress"),
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
 
-	_, err = svc.ec2.AuthorizeSecurityGroupEgress(authorizeEgressInput)
-	if err != nil {
-		return "", fmt.Errorf("error authorizing security group egress: %v", err)
-	}
-	// return the security group ID
+	// _, err = svc.ec2.AuthorizeSecurityGroupEgress(authorizeEgressInput)
+	// if err != nil {
+	// 	return "", fmt.Errorf("error authorizing security group egress: %v", err)
+	// }
+	// // return the security group ID
 	return *createSGOutput.GroupId, nil
 }
 
@@ -268,6 +270,7 @@ func BuildEC2() (string, error) {
 	// 	//userData = []byte("")
 	// }
 	// encodedUserData := base64.StdEncoding.EncodeToString(userData)
+	// windows server:  ami-091f300417a06d788
 	imageID, err := GetImgID()
 	if err != nil {
 		log.Printf("error getting image ID: %v", err)
@@ -321,59 +324,59 @@ func BuildEC2() (string, error) {
 	return "", fmt.Errorf("no instance was created")
 }
 
-//unused function but may be useful in the future
-func createAlternateSubnet() (string, error) {
-	// Describe subnets to get the AZ of the first subnet
-	vpcID, err := GetVPC()
-	if err != nil {
-		return "", fmt.Errorf("failed to get VPC for creating subnet: %s", err)
-	}
+// unused function but may be useful in the future
+// func createAlternateSubnet() (string, error) {
+// 	// Describe subnets to get the AZ of the first subnet
+// 	vpcID, err := GetVPC()
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to get VPC for creating subnet: %s", err)
+// 	}
 
-	subnetsOutput, err := svc.ec2.DescribeSubnets(&ec2.DescribeSubnetsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("vpc-id"),
-				Values: []*string{aws.String(vpcID)},
-			},
-		},
-	})
-	if err != nil {
-		return "", err
-	}
+// 	subnetsOutput, err := svc.ec2.DescribeSubnets(&ec2.DescribeSubnetsInput{
+// 		Filters: []*ec2.Filter{
+// 			{
+// 				Name:   aws.String("vpc-id"),
+// 				Values: []*string{aws.String(vpcID)},
+// 			},
+// 		},
+// 	})
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	az := *subnetsOutput.Subnets[0].AvailabilityZone
-	region := az[:len(az)-1]
-	azChar := az[len(az)-1:]
-	var newAzChar string
-	if azChar == "a" {
-		newAzChar = "b"
-	} else {
-		newAzChar = "a"
-	}
-	newAz := region + newAzChar
+// 	az := *subnetsOutput.Subnets[0].AvailabilityZone
+// 	region := az[:len(az)-1]
+// 	azChar := az[len(az)-1:]
+// 	var newAzChar string
+// 	if azChar == "a" {
+// 		newAzChar = "b"
+// 	} else {
+// 		newAzChar = "a"
+// 	}
+// 	newAz := region + newAzChar
 
-	// Describe VPCs to get the CIDR block
-	vpcsOutput, err := svc.ec2.DescribeVpcs(&ec2.DescribeVpcsInput{
-		VpcIds: []*string{aws.String(vpcID)},
-	})
-	if err != nil {
-		return "", err
-	}
+// 	// Describe VPCs to get the CIDR block
+// 	vpcsOutput, err := svc.ec2.DescribeVpcs(&ec2.DescribeVpcsInput{
+// 		VpcIds: []*string{aws.String(vpcID)},
+// 	})
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	cidrBlock := *vpcsOutput.Vpcs[0].CidrBlock
-	cidrPrefix := cidrBlock[:6]
-	newSubnetCidr := fmt.Sprintf("%s.255.208/28", cidrPrefix)
+// 	cidrBlock := *vpcsOutput.Vpcs[0].CidrBlock
+// 	cidrPrefix := cidrBlock[:6]
+// 	newSubnetCidr := fmt.Sprintf("%s.255.208/28", cidrPrefix)
 
-	// Create the new subnet
-	newSubnetOutput, err := svc.ec2.CreateSubnet(&ec2.CreateSubnetInput{
-		VpcId:            aws.String(vpcID),
-		AvailabilityZone: aws.String(newAz),
-		CidrBlock:        aws.String(newSubnetCidr),
-	})
-	if err != nil {
-		return "", err
-	}
+// 	// Create the new subnet
+// 	newSubnetOutput, err := svc.ec2.CreateSubnet(&ec2.CreateSubnetInput{
+// 		VpcId:            aws.String(vpcID),
+// 		AvailabilityZone: aws.String(newAz),
+// 		CidrBlock:        aws.String(newSubnetCidr),
+// 	})
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	return *newSubnetOutput.Subnet.SubnetId, nil
+// 	return *newSubnetOutput.Subnet.SubnetId, nil
 
-}
+// }

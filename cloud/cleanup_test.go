@@ -29,8 +29,13 @@ func TestDeleteKeyPair(t *testing.T) {
 }
 func TestDeleSecurityGroup(t *testing.T) {
 	CheckAuth()
+	CreateSession("us-west-2")
+	err := GetSession().CreateServices("ec2")
+	if err != nil {
+		t.Fatal("Error:", err)
+	}
 
-	err := DeleteSecurityGroup()
+	err = DeleteSecurityGroup()
 	if err != nil {
 		t.Fatal(err)
 	}
