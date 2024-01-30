@@ -88,40 +88,52 @@ func DeleteKeyPair() error {
 	return nil
 }
 
+func DetachPolicyFromRole() error {
+	_, err := svc.iam.DetachRolePolicy(&iam.DetachRolePolicyInput{
+		PolicyArn: aws.String("arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole"),
+		RoleName:  aws.String("ec2-admin-role-custom"),
+	})
+	if err != nil {
+		return fmt.Errorf("error detaching policy from role: %v", err)
+	}
+	fmt.Println("Policy detached from role:", "ec2-admin-role-custom")
+	return nil
+}
+
 // detachRoleFromInstanceProfile detaches the specified role from the instance profile
 func DetachRoleFromInstanceProfile() error {
 	_, err := svc.iam.RemoveRoleFromInstanceProfile(&iam.RemoveRoleFromInstanceProfileInput{
-		InstanceProfileName: aws.String("vault-ec2-InstProf"),
-		RoleName:            aws.String("vault-ec2-metadata-role"),
+		InstanceProfileName: aws.String("ec2-InstProf-custom"),
+		RoleName:            aws.String("ec2-admin-role-custom"),
 	})
 	if err != nil {
 		return fmt.Errorf("error detaching role from instance profile: %v", err)
 	}
-	fmt.Println("Role detached from instance profile:", "vault-ec2-metadata-role", "vault-ec2-InstProf")
+	fmt.Println("Role detached from instance profile:", "ec2-admin-role-custom", "ec2-InstProf-custom")
 	return nil
 }
 
 // deleteInstanceProfile deletes the specified instance profile
 func DeleteInstanceProfile() error {
 	_, err := svc.iam.DeleteInstanceProfile(&iam.DeleteInstanceProfileInput{
-		InstanceProfileName: aws.String("vault-ec2-InstProf"),
+		InstanceProfileName: aws.String("ec2-InstProf-custom"),
 	})
 	if err != nil {
 		return fmt.Errorf("error deleting instance profile: %v", err)
 	}
-	fmt.Println("Instance profile deleted:", "vault-ec2-InstProf")
+	fmt.Println("Instance profile deleted:", "ec2-InstProf-custom")
 	return nil
 }
 
 // deleteRole deletes the specified IAM role
 func DeleteRole() error {
 	_, err := svc.iam.DeleteRole(&iam.DeleteRoleInput{
-		RoleName: aws.String("vault-ec2-metadata-role"),
+		RoleName: aws.String("ec2-admin-role-custom"),
 	})
 	if err != nil {
 		return fmt.Errorf("error deleting role: %v", err)
 	}
-	fmt.Println("IAM role deleted:", "vault-ec2-metadata-role")
+	fmt.Println("IAM role deleted:", "ec2-admin-role-custom")
 	return nil
 }
 

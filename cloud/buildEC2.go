@@ -1,9 +1,10 @@
 package cloud
 
 import (
+	"encoding/base64"
 	"fmt"
-	"log"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws" // AWS-specific configurations
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -168,7 +169,7 @@ func GetSGID() ([]string, error) {
 
 func CreateInstProf() error {
 	// Define the trust policy document
-	trustPolicyDocument := `{
+	policyDocument := `{
 		"Version": "2012-10-17",
 		"Statement": [
 			{
@@ -183,27 +184,62 @@ func CreateInstProf() error {
 
 	// Create the role
 	createRoleInput := &iam.CreateRoleInput{
-		RoleName:                 aws.String("vault-ec2-metadata-role"),
-		AssumeRolePolicyDocument: aws.String(trustPolicyDocument),
+		RoleName:                 aws.String("ec2-admin-role-custom"),
+		AssumeRolePolicyDocument: aws.String(policyDocument),
 	}
 	_, err := svc.iam.CreateRole(createRoleInput)
 	if err != nil {
 		return fmt.Errorf("error: %w", err)
 	}
 
+	// policyDocument = `{
+	// 	"Version": "2012-10-17",
+	// 	"Statement": [
+	// 		{
+	// 			"Effect": "Allow",
+	// 			"Action": "ssm:SendCommand",
+	// 			"Resource": "*"
+	// 		}
+	// 	]
+	// }`
+	// polinput := &iam.CreatePolicyInput{
+	//     PolicyName:     aws.String("ec2-windows-admin-policy"),
+	//     PolicyDocument: aws.String(policyDocument),
+	// }
+
+	// arn, err := svc.iam.CreatePolicy(polinput)
+	// if err != nil {
+	//     return fmt.Errorf("error creating policy: %w", err)
+	// }
+
+	//get policy arn from the response
+	// policyArn := *arn.Policy.Arn
+
+	input := &iam.AttachRolePolicyInput{
+		PolicyArn: aws.String("arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole"),
+		RoleName:  aws.String("ec2-admin-role-custom"),
+	}
+
+	_, err = svc.iam.AttachRolePolicy(input)
+	if err != nil {
+		return err
+	}
 	// Create the instance profile
 	createInstanceProfileInput := &iam.CreateInstanceProfileInput{
-		InstanceProfileName: aws.String("vault-ec2-InstProf"),
+		InstanceProfileName: aws.String("ec2-InstProf-custom"),
 	}
 	_, err = svc.iam.CreateInstanceProfile(createInstanceProfileInput)
 	if err != nil {
 		return fmt.Errorf("error creating instance profile: %w", err)
 	}
 
+	// wait for instance profile to be created
+	time.Sleep(5 * time.Second)
+
 	// Attach the role to the instance profile
 	addRoleToInstanceProfileInput := &iam.AddRoleToInstanceProfileInput{
-		InstanceProfileName: aws.String("vault-ec2-InstProf"),
-		RoleName:            aws.String("vault-ec2-metadata-role"),
+		InstanceProfileName: aws.String("ec2-InstProf-custom"),
+		RoleName:            aws.String("ec2-admin-role-custom"),
 	}
 	_, err = svc.iam.AddRoleToInstanceProfile(addRoleToInstanceProfileInput)
 	if err != nil {
@@ -261,27 +297,74 @@ func GetSubnetID() (string, error) {
 // 	return nil
 // }
 
-func BuildEC2() (string, error) {
-
+func encodeUserData() (string, error) {
 	// Read user data from file
-	// _, err := os.ReadFile("user-data.txt")
-	// if err != nil {
-	// 	log.Printf("error reading user data file: %v", err)
-	// 	//userData = []byte("")
-	// }
-	// encodedUserData := base64.StdEncoding.EncodeToString(userData)
+	userData, err := os.ReadFile("user-data.yaml")
+	if err != nil {
+		return "", err
+		//userData = []byte("")
+	}
+	return base64.StdEncoding.EncodeToString(userData), nil
+}
+func GetEC2ID() (string, error) {
+	// Create the EC2 service client
+	// svc := ec2.New(sess)
+
+	// Describe instances
+	input := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("tag:Name"),
+				Values: []*string{aws.String("vault-ad-server")},
+			},
+		},
+	}
+
+	result, err := svc.ec2.DescribeInstances(input)
+	if err != nil {
+		return "", fmt.Errorf("error describing instances: %v", err)
+	}
+
+	return *result.Reservations[0].Instances[0].InstanceId, nil
+}
+
+func GetPublicDNS(instanceID *string) (string, error) {
+	//instanceID, err := GetEC2ID()
+	//if err != nil {
+	//	return "", fmt.Errorf("error getting EC2ID: %v", err)
+	//}
+	input := &ec2.DescribeInstancesInput{
+		InstanceIds: []*string{
+			instanceID,
+		},
+	}
+
+	result, err := svc.ec2.DescribeInstances(input)
+	if err != nil {
+		return "", fmt.Errorf("error describing instances: %v", err)
+	}
+
+	return *result.Reservations[0].Instances[0].PublicDnsName, nil
+}
+
+func BuildEC2() (string, error) {
+	encodedUserData, err := encodeUserData()
+	if err != nil {
+		return "", fmt.Errorf("error in encodeUserData function: %v", err)
+	}
+
 	// windows server:  ami-091f300417a06d788
 	imageID, err := GetImgID()
 	if err != nil {
-		log.Printf("error getting image ID: %v", err)
+		return "", fmt.Errorf("error getting image ID: %v", err)
 	}
 	sgID, err := GetSGID()
 	if err != nil {
-		log.Printf("error getting security group ID: %v", err)
+		return "", fmt.Errorf("error getting security group ID: %v", err)
 	}
 	subnetID, err := GetSubnetID()
 	if err != nil {
-		log.Printf("error getting subnet ID: %v", err)
+		return "", fmt.Errorf("error getting subnet ID: %v", err)
 	}
 
 	// Run Instances
@@ -292,9 +375,9 @@ func BuildEC2() (string, error) {
 		SecurityGroupIds: aws.StringSlice(sgID),
 		SubnetId:         aws.String(subnetID),
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-			Name: aws.String("vault-ec2-InstProf"),
+			Name: aws.String("ec2-InstProf-custom"),
 		},
-		//UserData: aws.String(encodedUserData),
+		UserData: aws.String(encodedUserData),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String("instance"),
@@ -318,7 +401,17 @@ func BuildEC2() (string, error) {
 	// Assuming only one instance is created
 	if len(result.Instances) > 0 {
 		// waitInstancePending(*result.Instances[0].InstanceId)
-		return *result.Instances[0].InstanceId, nil
+		err := svc.ec2.WaitUntilInstanceRunning(&ec2.DescribeInstancesInput{
+			InstanceIds: []*string{result.Instances[0].InstanceId},
+		})
+		if err != nil {
+			return "", fmt.Errorf("error waiting for instance to run: %v", err)
+		}
+		pubDNS, err := GetPublicDNS(result.Instances[0].InstanceId)
+		if err != nil {
+			return "", fmt.Errorf("error getting public DNS: %v", err)
+		}
+		return fmt.Sprintf("ssh -i key.pem -o StrictHostKeyChecking=no Administrator@%s", pubDNS), nil
 	}
 
 	return "", fmt.Errorf("no instance was created")

@@ -47,7 +47,7 @@ func CreateSession(region string) error {
 	})
 	return err
 }
-
+// allows for specific service, if desired, or none to initialize all
 func (s *AWSSession) CreateServices(serviceType ...string) error {
 	sess := s.GetAWSSession()
 

@@ -142,6 +142,14 @@ func TestGetSubnetID(t *testing.T) {
 	assert.NotEmpty(t, snID, "Subnet ID should not be empty")
 }
 
+func TestEncodeUserData(t *testing.T) {
+	// Assume encodeUserData() returns a string
+	userData, err := encodeUserData()
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, userData)
+}
+
 func TestBuildEC2(t *testing.T) {
 	CheckAuth()
 
@@ -151,4 +159,34 @@ func TestBuildEC2(t *testing.T) {
 	// Assertions
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ec2ID, "EC2 ID should not be empty")
+}
+
+func TestGetEC2ID(t *testing.T) {
+	CheckAuth()
+	// Call the function under test
+	CreateSession("us-west-2")
+	GetSession().CreateServices("ec2")
+
+	ec2ID, err := GetEC2ID()
+	fmt.Println(ec2ID)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotEmpty(t, ec2ID, "EC2 ID should not be empty")
+}
+func TestGetDNS(t *testing.T) {
+	CheckAuth()
+	// Call the function under test
+	CreateSession("us-west-2")
+	err := GetSession().CreateServices("ec2")
+	if err != nil {
+		fmt.Println("Error creating svc", err)
+	}
+	instanceID, _ := GetEC2ID()
+	ipv4dns, err := GetPublicDNS(&instanceID)
+	fmt.Println(ipv4dns)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotEmpty(t, ipv4dns, "IPv4 DNS should not be empty")
 }

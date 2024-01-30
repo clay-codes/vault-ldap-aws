@@ -1,14 +1,46 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/clay-codes/aws-ldap/cloud"
 )
+
+var runCleanup bool
+
+func init() {
+	// prompt user if they want to run cleanup
+	cloud.CheckAuth()
+
+	// creating a session
+	if err := cloud.CreateSession("us-west-2"); err != nil {
+		log.Fatal(err)
+	}
+
+	// getting session
+	// sess := cloud.GetSession().GetAWSSession()
+
+	// creating needed services from session
+	if err := cloud.GetSession().CreateServices(); err != nil {
+		log.Fatal(err)
+	}
+
+	// prompt user if they want to run cleanup
+	fmt.Print("Would you like to run cleanup? (yes/no): ")
+	var response string
+	_, err := fmt.Scanln(&response)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	runCleanup = strings.ToLower(response) == "yes" || strings.ToLower(response) == "y"
+}
+
+// rest of your code
 
 // var EC2ID = ""
 func bootStrap() {
@@ -17,7 +49,8 @@ func bootStrap() {
 		log.Fatal(err)
 	}
 	fmt.Println(str)
-
+	// currently, ports functionality unimplemented,
+	// but could be used to establish rules for each port
 	_, err = cloud.CreateSG([]int64{22, 8200, 8201})
 	if err != nil {
 		log.Fatal(err)
@@ -30,12 +63,12 @@ func bootStrap() {
 	// wait for instance profile to be created
 	time.Sleep(10 * time.Second)
 
-	ec2ID, err := cloud.BuildEC2()
+	ipv4dns, err := cloud.BuildEC2()
 	// EC2ID = ec2ID
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("EC2ID: %s", ec2ID)
+	fmt.Printf("Environment Ready, use this command to connect via openssh: %s", ipv4dns)
 }
 
 func CleanupCloud() {
@@ -48,6 +81,11 @@ func CleanupCloud() {
 	if err := cloud.DeleteKeyPair(); err != nil {
 		fmt.Printf("error deleting key pair: %v", err)
 	}
+
+	if err := cloud.DetachPolicyFromRole(); err != nil {
+		fmt.Printf("error detaching policy from role: %v", err)
+	}
+
 	if err := cloud.DetachRoleFromInstanceProfile(); err != nil {
 		fmt.Printf("error detaching role from instance profile: %v", err)
 	}
@@ -67,29 +105,27 @@ func main() {
 	// Initialize a session in us-west-2 that the SDK will use to load credentials
 	// from the shared credentials file ~/.aws/credentials.
 
-	//set flag to run cleanup
-	cloud.CheckAuth()
-
-	// creating a session
-	if err := cloud.CreateSession("us-west-2"); err != nil {
-		log.Fatal(err)
-	}
-
-	// getting session
-	// sess := cloud.GetSession().GetAWSSession()
-
-	// creating needed services from session
-	if err := cloud.GetSession().CreateServices(); err != nil {
-		log.Fatal(err)
-	}
-
-	cleanupFlag := flag.Bool("cleanup", false, "Set this flag to false to run the cleanup process")
-
-	flag.Parse()
-
-	if *cleanupFlag {
-		bootStrap()
-	} else {
+	if runCleanup {
 		CleanupCloud()
+	} else {
+		bootStrap()
 	}
+	// if len(os.Args) < 2 {
+	// 	return
+	// }
+
+	// arg := os.Args[1]
+
+	// switch arg {
+	// case "true":
+	// 	fmt.Println("Creating resources...")
+	// 	bootStrap()
+
+	// case "false":
+	// 	fmt.Println("Deleting resources...")
+	// 	CleanupCloud()
+
+	// default:
+	// 	fmt.Println("Invalid argument. Please use 'true' or 'false'.")
+	// }
 }

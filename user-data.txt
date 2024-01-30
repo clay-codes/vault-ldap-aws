@@ -1,0 +1,51 @@
+<powershell>
+# Define a temporary file path
+$tempFilePath = [System.IO.Path]::GetTempFileName()
+
+# Export the current security settings to the temp file
+secedit /export /cfg $tempFilePath
+
+# Read the content of the temp file into a variable
+$config = Get-Content -Path $tempFilePath
+
+# Modify the configuration in-memory
+# Example: Toggle the PasswordComplexity setting
+for ($i = 0; $i -lt $config.Length; $i++) {
+    if ($config[$i] -match "^PasswordComplexity") {
+        $value = $config[$i].Split("=")[1].Trim()
+        $config[$i] = "PasswordComplexity = 0"
+        break
+    }
+}
+
+# Write the updated content back to the temp file
+$config | Set-Content -Path $tempFilePath
+
+# Import the modified settings
+secedit /configure /db $env:windir\security\local.sdb /cfg $tempFilePath /areas SECURITYPOLICY
+
+# Force a policy update
+gpupdate /force
+net user Administrator admin
+# Clean up: Delete the temporary file
+Remove-Item $tempFilePath
+
+
+
+
+Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
+Import-Module ADDSDeployment
+Install-ADDSForest `
+-CreateDnsDelegation:$false `
+-DatabasePath "C:\Windows\NTDS" `
+-DomainMode "WinThreshold" `
+-DomainName "vaultest.com" `
+-DomainNetbiosName "VAULTEST" `
+-ForestMode "WinThreshold" `
+-InstallDns:$true `
+-LogPath "C:\Windows\NTDS" `
+-NoRebootOnCompletion:$false `
+-SysvolPath "C:\Windows\SYSVOL" `
+-SafeModeAdministratorPassword (ConvertTo-SecureString -AsPlainText "VaultDSRMPassw0rd!" -Force) `
+-Force:$true
+</powershell>
