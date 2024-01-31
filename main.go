@@ -13,7 +13,7 @@ import (
 var runCleanup bool
 
 func init() {
-	
+
 	// prompt user if they want to run cleanup
 	fmt.Print("Would you like to run cleanup? (yes/no): ")
 	var response string
@@ -21,9 +21,9 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	runCleanup = strings.ToLower(response) == "yes" || strings.ToLower(response) == "y"
-	
+
 	// authenticate with AWS
 	cloud.CheckAuth()
 
@@ -58,11 +58,18 @@ func bootStrap() {
 	// wait for instance profile to be created sometimes necessary to avoid not found error
 	time.Sleep(10 * time.Second)
 
-	ipv4dns, err := cloud.BuildEC2()
+	pubDNS, err := cloud.BuildEC2()
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Environment Ready, use this command to connect via openssh: %s", ipv4dns)
+	fmt.Println("Environment nearly ready. Use this command to connect via openssh in a few moments: ")
+	fmt.Printf("ssh -i key.pem -o StrictHostKeyChecking=no Administrator@%s", pubDNS)
+	fmt.Println()
+	fmt.Println()
+	fmt.Println("Root Username: Administrator")
+	fmt.Println("Password: admin")
+	fmt.Println("Test DN of vaultest.com has been added to the LDAP server. Use the following command to test the connection: ")
+	fmt.Printf("ldapsearch -x -H ldap://%s:389 -D \"cn=admin,dc=vaultest,dc=com\" -w admin -b \"dc=vaultest,dc=com\" -s sub \"(objectclass=*)\"\n", pubDNS)
 }
 
 func CleanupCloud() {

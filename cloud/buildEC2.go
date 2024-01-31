@@ -327,7 +327,7 @@ func BuildEC2() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("error getting public DNS: %v", err)
 		}
-		return fmt.Sprintf("ssh -i key.pem -o StrictHostKeyChecking=no Administrator@%s", pubDNS), nil
+		return pubDNS, nil
 	}
 
 	return "", fmt.Errorf("no instance was created")
