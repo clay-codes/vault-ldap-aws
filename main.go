@@ -13,22 +13,7 @@ import (
 var runCleanup bool
 
 func init() {
-	// prompt user if they want to run cleanup
-	cloud.CheckAuth()
-
-	// creating a session
-	if err := cloud.CreateSession("us-west-2"); err != nil {
-		log.Fatal(err)
-	}
-
-	// getting session
-	// sess := cloud.GetSession().GetAWSSession()
-
-	// creating needed services from session
-	if err := cloud.GetSession().CreateServices(); err != nil {
-		log.Fatal(err)
-	}
-
+	
 	// prompt user if they want to run cleanup
 	fmt.Print("Would you like to run cleanup? (yes/no): ")
 	var response string
@@ -36,22 +21,32 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
 	runCleanup = strings.ToLower(response) == "yes" || strings.ToLower(response) == "y"
+	
+	// authenticate with AWS
+	cloud.CheckAuth()
+
+	// creating a session
+	if err := cloud.CreateSession("us-west-2"); err != nil {
+		log.Fatal(err)
+	}
+
+	// creating needed services from session
+	if err := cloud.GetSession().CreateServices(); err != nil {
+		log.Fatal(err)
+	}
 }
 
-// rest of your code
-
-// var EC2ID = ""
+// build environment
 func bootStrap() {
 	str, err := cloud.CreateKP()
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(str)
-	// currently, ports functionality unimplemented,
-	// but could be used to establish rules for each port
-	_, err = cloud.CreateSG([]int64{22, 8200, 8201})
+
+	_, err = cloud.CreateSG()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,11 +55,10 @@ func bootStrap() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// wait for instance profile to be created
+	// wait for instance profile to be created sometimes necessary to avoid not found error
 	time.Sleep(10 * time.Second)
 
 	ipv4dns, err := cloud.BuildEC2()
-	// EC2ID = ec2ID
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,32 +94,10 @@ func CleanupCloud() {
 	}
 }
 
-// run the main function
 func main() {
-	// Initialize a session in us-west-2 that the SDK will use to load credentials
-	// from the shared credentials file ~/.aws/credentials.
-
 	if runCleanup {
 		CleanupCloud()
 	} else {
 		bootStrap()
 	}
-	// if len(os.Args) < 2 {
-	// 	return
-	// }
-
-	// arg := os.Args[1]
-
-	// switch arg {
-	// case "true":
-	// 	fmt.Println("Creating resources...")
-	// 	bootStrap()
-
-	// case "false":
-	// 	fmt.Println("Deleting resources...")
-	// 	CleanupCloud()
-
-	// default:
-	// 	fmt.Println("Invalid argument. Please use 'true' or 'false'.")
-	// }
 }

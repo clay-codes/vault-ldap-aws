@@ -39,9 +39,6 @@ func TestDeleSecurityGroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// call aws describe key pairs to check if key pair is deleted
-
 	assert.NoError(t, err)
 }
 
