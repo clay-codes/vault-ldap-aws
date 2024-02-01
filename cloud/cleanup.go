@@ -72,7 +72,7 @@ func TerminateEC2Instance() error {
 		return fmt.Errorf("error terminating EC2 instance: %v", err)
 	}
 	waitForInstanceTermination(instanceID)
-	fmt.Println("EC2 instance terminated:", instanceID)
+	fmt.Println("\nEC2 instance terminated:", instanceID)
 	return nil
 }
 
@@ -84,7 +84,7 @@ func DeleteKeyPair() error {
 	if err != nil {
 		return fmt.Errorf("error deleting key pair: %v", err)
 	}
-	fmt.Println("\nKey pair deleted: vault-EC2-kp")
+	fmt.Println("Key pair deleted: vault-EC2-kp")
 	return nil
 }
 
