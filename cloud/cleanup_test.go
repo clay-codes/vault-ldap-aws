@@ -68,7 +68,7 @@ func TestDeleteRole(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPrint(t *testing.T) {
+func TestBootPrint(t *testing.T) {
 	key:= "key"
 	sgid:= "sgid"
 	pubDNS:= "pubDNS"
@@ -88,4 +88,19 @@ func TestPrint(t *testing.T) {
 	fmt.Println("\n> powershell")
 	fmt.Println("> Import-Module C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\ActiveDirectory\\ActiveDirectory.psd1")
 	fmt.Println("> Get-ADForest")
+}
+
+func TestCleanupPrint(t *testing.T) {
+	instanceID:= "i-1234567890abcdef0"
+	sgID:= "sg-1234567890abcdef0"
+	fmt.Println("\nEC2 instance terminated                       ", instanceID)
+	fmt.Println("Key pair deleted                               vault-EC2-kp")
+	fmt.Println("AWS role detatched from custom role            AmazonSSMAutomationRole")
+	fmt.Println("Custom role detached from instance profile     ec2-admin-role-custom")
+	fmt.Println("Instance profile deleted                       ec2-InstProf-custom")
+	fmt.Println("Custom role deleted                            ec2-admin-role-custom")
+	fmt.Println("Security group deleted                        ", sgID)
+
+	
+	
 }

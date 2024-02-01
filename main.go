@@ -75,7 +75,7 @@ func bootStrap() {
 	fmt.Println("\nRun the following on server to see AD details (if error, will need to wait a bit longer): ")
 	fmt.Println("\n> powershell")
 	fmt.Println("> Get-ADForest")
-	fmt.Println("> Get-ADUser")
+	fmt.Println("> Get-ADUser -Filter *")
 	fmt.Println("> Get-ADUser -Identity Administrator -Properties *")
 }
 

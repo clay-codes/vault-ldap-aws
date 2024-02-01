@@ -72,7 +72,7 @@ func TerminateEC2Instance() error {
 		return fmt.Errorf("error terminating EC2 instance: %v", err)
 	}
 	waitForInstanceTermination(instanceID)
-	fmt.Println("\nEC2 instance terminated:", instanceID)
+	fmt.Println("\nEC2 instance terminated                       ", instanceID)
 	return nil
 }
 
@@ -84,7 +84,7 @@ func DeleteKeyPair() error {
 	if err != nil {
 		return fmt.Errorf("error deleting key pair: %v", err)
 	}
-	fmt.Println("Key pair deleted: vault-EC2-kp")
+	fmt.Println("Key pair deleted                               vault-EC2-kp")
 	return nil
 }
 
@@ -96,7 +96,7 @@ func DetachPolicyFromRole() error {
 	if err != nil {
 		return fmt.Errorf("error detaching policy from role: %v", err)
 	}
-	fmt.Println("Policy detached from role:", "ec2-admin-role-custom")
+	fmt.Println("AWS role detatched from custom role            AmazonSSMAutomationRole")
 	return nil
 }
 
@@ -109,7 +109,7 @@ func DetachRoleFromInstanceProfile() error {
 	if err != nil {
 		return fmt.Errorf("error detaching role from instance profile: %v", err)
 	}
-	fmt.Println("Role detached from instance profile:", "ec2-admin-role-custom", "ec2-InstProf-custom")
+	fmt.Println("Custom role detached from instance profile     ec2-admin-role-custom")
 	return nil
 }
 
@@ -121,7 +121,7 @@ func DeleteInstanceProfile() error {
 	if err != nil {
 		return fmt.Errorf("error deleting instance profile: %v", err)
 	}
-	fmt.Println("Instance profile deleted:", "ec2-InstProf-custom")
+	fmt.Println("Instance profile deleted                       ec2-InstProf-custom")
 	return nil
 }
 
@@ -133,7 +133,7 @@ func DeleteRole() error {
 	if err != nil {
 		return fmt.Errorf("error deleting role: %v", err)
 	}
-	fmt.Println("IAM role deleted:", "ec2-admin-role-custom")
+	fmt.Println("Custom role deleted                            ec2-admin-role-custom")
 	return nil
 }
 
@@ -149,6 +149,6 @@ func DeleteSecurityGroup() error {
 	if err != nil {
 		return fmt.Errorf("error deleting security group: %v", err)
 	}
-	fmt.Println("Security group deleted:", sgID)
+	fmt.Println("Security group deleted                        ", sgID)
 	return nil
 }
