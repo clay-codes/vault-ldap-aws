@@ -22,13 +22,14 @@ brew install openldap
 
 #### Quick Setup Via Binary
 - binary compiled on Apple M1 Max 32gb
-- owners of machine with same architecture just downoad `cool-ad` and run `./coolad`
+- owners of machine with same architecture just download `cool-ad` and run `./coolad` (may need chmod +x)
+- if mac throws a security message, go to System Settings -> Privacy & Security -> Open Anyway
 
 #### Setup without binary
 - clone repo; cd into 
 - run `go run .`
 
-### Usage
+#### Usage
 - first time use, enter `no/n` at cleanup prompt
 - wait about 5 min for resources to be created
 - once finished, will output ssh command to openssh to windows server/AD domain controller
@@ -38,7 +39,7 @@ brew install openldap
 - when finished, run again and enter `yes/y` to run cleanup
 - cleanup takes about 3-5 minutes
 
-### Server Info
+#### Server Info
 - domain controller
 - username is `Administrator`
 - password is `admin`
@@ -46,3 +47,6 @@ brew install openldap
 - password complexities have been disabled
 - once ssh connection established, all commands are run in batch, just type `powershell` to switch
 - `exit` to close connection
+- Windows EC2 instances employ a "launch" agent for customizing startup parameters
+- this instance is using EC2Launch v2 agent which allows startup tasks to be defined via yaml in user-data
+- more [info](https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/ec2launch-v2-settings.html#ec2launch-v2-schema-user-data) on EC2Launch V2 syntax/task defninitions
