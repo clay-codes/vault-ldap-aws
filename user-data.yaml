@@ -21,6 +21,7 @@ tasks:
       net user Administrator admin
       Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
       Import-Module ADDSDeployment
+      Import-Module ActiveDirectory
       Install-ADDSForest `
       -CreateDnsDelegation:$false `
       -DatabasePath "C:\Windows\NTDS" `

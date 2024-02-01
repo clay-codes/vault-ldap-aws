@@ -2,7 +2,10 @@ module github.com/clay-codes/aws-ldap
 
 go 1.21.4
 
-require github.com/stretchr/testify v1.8.4
+require (
+	github.com/stretchr/testify v1.8.4
+	gopkg.in/yaml.v2 v2.2.8
+)
 
 require (
 	github.com/aws/aws-sdk-go v1.48.13 // indirect

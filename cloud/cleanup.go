@@ -84,7 +84,7 @@ func DeleteKeyPair() error {
 	if err != nil {
 		return fmt.Errorf("error deleting key pair: %v", err)
 	}
-	fmt.Println("Key pair deleted:", "vault-EC2-kp")
+	fmt.Println("\nKey pair deleted: vault-EC2-kp")
 	return nil
 }
 

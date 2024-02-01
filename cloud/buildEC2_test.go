@@ -1,6 +1,7 @@
 package cloud
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -62,6 +63,7 @@ func TestGetImgID(t *testing.T) {
 	assert.NotEmpty(t, amiID, "AMI ID should not be empty")
 }
 
+
 func TestGetVPC(t *testing.T) {
 	CheckAuth()
 	CreateSession("us-west-2")
@@ -108,12 +110,15 @@ func TestGetSubnetID(t *testing.T) {
 	assert.NotEmpty(t, snID, "Subnet ID should not be empty")
 }
 
+// used this to generate a file with encoded user data, then saved encoded string to variable EncodedUserData in buildEC2.go 
 func TestEncodeUserData(t *testing.T) {
 	// Assume encodeUserData() returns a string
-	userData, err := encodeUserData()
+	userData, _ := os.ReadFile("../user-data.yaml")
 
-	assert.NoError(t, err)
-	assert.NotEmpty(t, userData)
+	encode := base64.StdEncoding.EncodeToString(userData)
+	// generate a file with the encoded string
+	os.WriteFile("../encoded-user-data.txt", []byte(encode), 0644)
+
 }
 
 func TestBuildEC2(t *testing.T) {

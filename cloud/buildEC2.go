@@ -1,16 +1,17 @@
 package cloud
 
 import (
-	"encoding/base64"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws" 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 )
+// user-data.yaml file b64 encoded, necessary for binary, as the actual user-data.yaml file will not be compiled to binary upon `go build`
+const EncodedUserData = "dmVyc2lvbjogMS4xCnRhc2tzOgotIHRhc2s6IGVuYWJsZU9wZW5Tc2gKLSB0YXNrOiBleGVjdXRlU2NyaXB0CiAgaW5wdXRzOgogIC0gZnJlcXVlbmN5OiBvbmNlCiAgICB0eXBlOiBwb3dlcnNoZWxsCiAgICBydW5BczogYWRtaW4KICAgIGNvbnRlbnQ6IHwtCiAgICAgICR0ZW1wRmlsZVBhdGggPSBbU3lzdGVtLklPLlBhdGhdOjpHZXRUZW1wRmlsZU5hbWUoKQogICAgICBzZWNlZGl0IC9leHBvcnQgL2NmZyAkdGVtcEZpbGVQYXRoCiAgICAgICRjb25maWcgPSBHZXQtQ29udGVudCAtUGF0aCAkdGVtcEZpbGVQYXRoCiAgICAgICRjb25maWcgPSAkY29uZmlnIC1yZXBsYWNlICJeTWluaW11bVBhc3N3b3JkQWdlXHMqPVxzKlxkKyIsICJNaW5pbXVtUGFzc3dvcmRBZ2UgPSAwIgogICAgICAkY29uZmlnID0gJGNvbmZpZyAtcmVwbGFjZSAiXk1heGltdW1QYXNzd29yZEFnZVxzKj1ccypcZCsiLCAiTWF4aW11bVBhc3N3b3JkQWdlID0gLTEiCiAgICAgICRjb25maWcgPSAkY29uZmlnIC1yZXBsYWNlICJeTWluaW11bVBhc3N3b3JkTGVuZ3RoXHMqPVxzKlxkKyIsICJNaW5pbXVtUGFzc3dvcmRMZW5ndGggPSAwIgogICAgICAkY29uZmlnID0gJGNvbmZpZyAtcmVwbGFjZSAiXlBhc3N3b3JkQ29tcGxleGl0eVxzKj1ccypcZCsiLCAiUGFzc3dvcmRDb21wbGV4aXR5ID0gMCIKICAgICAgJGNvbmZpZyB8IFNldC1Db250ZW50IC1QYXRoICR0ZW1wRmlsZVBhdGgKICAgICAgc2VjZWRpdCAvY29uZmlndXJlIC9kYiAkZW52OndpbmRpclxzZWN1cml0eVxsb2NhbC5zZGIgL2NmZyAkdGVtcEZpbGVQYXRoIC9hcmVhcyBTRUNVUklUWVBPTElDWQogICAgICBncHVwZGF0ZSAvZm9yY2UKICAgICAgUmVtb3ZlLUl0ZW0gJHRlbXBGaWxlUGF0aAogICAgICBuZXQgdXNlciBBZG1pbmlzdHJhdG9yIGFkbWluCiAgICAgIEluc3RhbGwtV2luZG93c0ZlYXR1cmUgQUQtRG9tYWluLVNlcnZpY2VzIC1JbmNsdWRlTWFuYWdlbWVudFRvb2xzCiAgICAgIEltcG9ydC1Nb2R1bGUgQUREU0RlcGxveW1lbnQKICAgICAgSW5zdGFsbC1BRERTRm9yZXN0IGAKICAgICAgLUNyZWF0ZURuc0RlbGVnYXRpb246JGZhbHNlIGAKICAgICAgLURhdGFiYXNlUGF0aCAiQzpcV2luZG93c1xOVERTIiBgCiAgICAgIC1Eb21haW5Nb2RlICJXaW5UaHJlc2hvbGQiIGAKICAgICAgLURvbWFpbk5hbWUgInZhdWx0ZXN0LmNvbSIgYAogICAgICAtRG9tYWluTmV0Ymlvc05hbWUgIlZBVUxURVNUIiBgCiAgICAgIC1Gb3Jlc3RNb2RlICJXaW5UaHJlc2hvbGQiIGAKICAgICAgLUluc3RhbGxEbnM6JHRydWUgYAogICAgICAtTG9nUGF0aCAiQzpcV2luZG93c1xOVERTIiBgCiAgICAgIC1Ob1JlYm9vdE9uQ29tcGxldGlvbjokZmFsc2UgYAogICAgICAtU3lzdm9sUGF0aCAiQzpcV2luZG93c1xTWVNWT0wiIGAKICAgICAgLVNhZmVNb2RlQWRtaW5pc3RyYXRvclBhc3N3b3JkIChDb252ZXJ0VG8tU2VjdXJlU3RyaW5nIC1Bc1BsYWluVGV4dCAiVmF1bHREU1JNUGFzc3cwcmQhIiAtRm9yY2UpIGAKICAgICAgLUZvcmNlOiR0cnVlCgo="
 
 func GetImgID() (string, error) {
 	input := &ssm.GetParameterInput{
@@ -35,28 +36,27 @@ func CreateKP() (string, error) {
 
 	result, err := svc.ec2.CreateKeyPair(input)
 	if err != nil {
-		return "Error creating key pair:", err
+		return "", fmt.Errorf("error creating key pair: %w", err)
 	}
 
 	// Write the key material to a file
 	file, err := os.Create("key.pem")
 	if err != nil {
-		return "Error creating file:", err
+		return "", fmt.Errorf("error creating file: %w", err)
 	}
 	defer file.Close()
 
 	// write key material to file
 	_, err = file.WriteString(*result.KeyMaterial)
 	if err != nil {
-		return "Error writing to file: ", err
+		return "", fmt.Errorf("error writing to file: %w", err)
 	}
 
 	// modify key.pem permissions to be read-only
 	if err = os.Chmod("key.pem", 0400); err != nil {
-		return "Error changing permissions: ", err
+		return "", fmt.Errorf("error changing file permissions: %w", err)
 	}
-
-	return "Created key pair", nil
+	return *result.KeyName, nil
 }
 
 func GetVPC() (string, error) {
@@ -88,7 +88,6 @@ func CreateSG() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error creating security group: %v", err)
 	}
-	fmt.Println("Security Group Created with ID:", *createSGOutput.GroupId)
 
 	// Authorize all inbound traffic
 	authorizeIngressInput := &ec2.AuthorizeSecurityGroupIngressInput{
@@ -221,15 +220,15 @@ func GetSubnetID() (string, error) {
 	}
 	return *result.Subnets[0].SubnetId, nil
 }
-
-func encodeUserData() (string, error) {
-	// Read user data from file
-	userData, err := os.ReadFile("user-data.yaml")
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(userData), nil
-}
+//  use this function if you would like to customize the user-data.yaml file
+//	func encodeUserData() (string, error) {
+//		// Read user data from file
+//		userData, err := os.ReadFile("user-data.yaml")
+//		if err != nil {
+//			return "", err
+//		}
+//		return base64.StdEncoding.EncodeToString(userData), nil
+//	}
 func GetEC2ID() (string, error) {
 	input := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
@@ -264,10 +263,12 @@ func GetPublicDNS(instanceID *string) (string, error) {
 }
 
 func BuildEC2() (string, error) {
-	encodedUserData, err := encodeUserData()
-	if err != nil {
-		return "", fmt.Errorf("error in encodeUserData function: %v", err)
-	}
+	encodedUserData := EncodedUserData
+	// can use instead of EncodedUserData if you would like to customize the user-data.yaml file
+	// encodedUserData, err := encodeUserData()
+	// if err != nil {
+	// 	return "", fmt.Errorf("error encoding user data: %v", err)
+	// }
 
 	imageID, err := GetImgID()
 	if err != nil {
