@@ -24,7 +24,7 @@ brew install openldap
 - binary compiled on Apple M1 Max 32gb
 - owners of machine with same architecture just downoad `cool-ad` and run `./coolad`
 
-#### Setup
+#### Setup without binary
 - clone repo; cd into 
 - run `go run .`
 
@@ -35,6 +35,8 @@ brew install openldap
 - will also output ldapsearch test command; openldap not installed on server
 - outputs powershell commands to view AD details, which can be executed on server
 - if error recieved when attempting powershell commands, need to wait another few minutes for AD bootstrap completion
+- when finished, run again and enter `yes/y` to run cleanup
+- cleanup takes about 3-5 minutes
 
 ### Server Info
 - domain controller
