@@ -58,22 +58,25 @@ func bootStrap() {
 	fmt.Println("\nrole created                ec2-admin-role-custom")
 	fmt.Println("instance profile created    ec2-InstProf-custom")
 	// wait for instance profile to be created sometimes necessary to avoid not found error
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	pubDNS, err := cloud.BuildEC2()
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("\nusername: Administrator")
-	fmt.Println("password: admin")
-	fmt.Println("\n\nEnvironment nearly ready. Use this command to connect via openssh in a few moments: ")
+	fmt.Println("\nusername            Administrator")
+	fmt.Println("password            admin")
+	fmt.Println("forest (root) dn    DC=vaultest,DC=com")
+	fmt.Println("\n\nEnvironment nearly ready. Server will need an additional few minutes to bootstrap AD even after connection established. ")
+	fmt.Println("\n\nRun this to connect: ")
 	fmt.Printf("\nssh -i key.pem -o StrictHostKeyChecking=no Administrator@%s\n", pubDNS)
-	fmt.Println("\n\nAD server installed with forest dn of vaultest.com \nUse the following command to test the connection via ldapsearch: ")
-	fmt.Printf("\nldapsearch -x -H ldap://%s:389 -D \"cn=admin,dc=vaultest,dc=com\" -w admin -b \"dc=vaultest,dc=com\" -s sub \"(objectclass=*)\"\n\n", pubDNS)
-	fmt.Println("\nCan also verify forest (root dn) exists by running the following on the server itself: ")
+	fmt.Println("\n\nldapsearch (not installed): ")
+	fmt.Printf("\nldapsearch -x -H ldap://%s:389 -D \"cn=Administrator,dc=vaultest,dc=com\" -w admin -b \"dc=vaultest,dc=com\" -s sub \"(objectclass=*)\"\n\n", pubDNS)
+	fmt.Println("\nRun the following on server to see AD details (if error, will need to wait a bit longer): ")
 	fmt.Println("\n> powershell")
-	fmt.Println("> Import-Module C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\ActiveDirectory\\ActiveDirectory.psd1")
 	fmt.Println("> Get-ADForest")
+	fmt.Println("> Get-ADUser")
+	fmt.Println("> Get-ADUser -Identity Administrator -Properties *")
 }
 
 func CleanupCloud() {
