@@ -15,7 +15,7 @@ var runCleanup bool
 func init() {
 
 	// prompt user if they want to run cleanup
-	fmt.Print("Would you like to run cleanup? (yes/no): ")
+	fmt.Print("Would you like to run cleanup? ")
 	var response string
 	_, err := fmt.Scanln(&response)
 	if err != nil {
@@ -70,7 +70,7 @@ func bootStrap() {
 	fmt.Printf("\nssh -i key.pem -o StrictHostKeyChecking=no Administrator@%s\n", pubDNS)
 	fmt.Println("\n\nAD server installed with forest dn of vaultest.com \nUse the following command to test the connection via ldapsearch: ")
 	fmt.Printf("\nldapsearch -x -H ldap://%s:389 -D \"cn=admin,dc=vaultest,dc=com\" -w admin -b \"dc=vaultest,dc=com\" -s sub \"(objectclass=*)\"\n\n", pubDNS)
-	fmt.Println("\nCan also verify forest (root dn) exists by running the following on the server itself: ") 
+	fmt.Println("\nCan also verify forest (root dn) exists by running the following on the server itself: ")
 	fmt.Println("\n> powershell")
 	fmt.Println("> Import-Module C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\ActiveDirectory\\ActiveDirectory.psd1")
 	fmt.Println("> Get-ADForest")
