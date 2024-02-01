@@ -149,6 +149,6 @@ func DeleteSecurityGroup() error {
 	if err != nil {
 		return fmt.Errorf("error deleting security group: %v", err)
 	}
-	fmt.Println("Security group deleted                        ", sgID)
+	fmt.Println("Security group deleted                        ", sgID[0])
 	return nil
 }
