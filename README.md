@@ -1,5 +1,5 @@
-# COOL-AD
-### Remote AWS AD Environment
+# coolAD
+### Remote AWS Active Directory Environment
 
 #### Prerequisites
 - UNIX/LINUX
