@@ -3,7 +3,7 @@
 
 #### Prerequisites
 - UNIX/LINUX
-- region specified in the `AWS_REGION`, `AWS_DEFAULT_REGION` [environment vars](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#:~:text=command%20line%20parameter.-,AWS_REGION,-The%20AWS%20SDK), or the [config file](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/setup-credentials.html#setup-credentials-setting-region) @  `~/.AWS/config` 
+- region defined in the `AWS_REGION`, `AWS_DEFAULT_REGION` [environment vars](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#:~:text=command%20line%20parameter.-,AWS_REGION,-The%20AWS%20SDK), or the [config file](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/setup-credentials.html#setup-credentials-setting-region) @  `~/.AWS/config` 
 - Go installed if not using `coolAD` binary for Apple M1
 - Doormat CLI to authenticate to AWS
 - (optional) openldap to test--can install via:
