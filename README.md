@@ -3,7 +3,8 @@
 
 #### Prerequisites
 - UNIX/LINUX
-- go installed if not running on Apple M1
+- region specified in the `AWS_REGION`, `AWS_DEFAULT_REGION` [environment vars](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#:~:text=command%20line%20parameter.-,AWS_REGION,-The%20AWS%20SDK), or the [config file](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/setup-credentials.html#setup-credentials-setting-region) @  `~/.AWS/config` 
+- Go installed if not running on Apple M1
 - Doormat CLI to authenticate to AWS
 - (optional) openldap to test--can install via:
 ```
@@ -22,15 +23,16 @@ brew install openldap
 
 #### Quick Setup Via Binary
 - binary compiled on Apple M1 Max 32gb
-- owners of machine with same architecture just download `cool-ad` and run `./coolad` (may need chmod +x)
+- owners of machine with same architecture just download `cool-ad` and run `./coolAD` (may need chmod +x)
 - if mac throws a security message, go to System Settings -> Privacy & Security -> Open Anyway
 
-#### Setup without binary
+#### Setup Without Binary
 - clone repo; cd into 
 - run `go run .`
 
 #### Usage
 - first time use, enter `no/n` at cleanup prompt
+- checks first for AWS region, exits if not set
 - wait about 5 min for resources to be created
 - once finished, will output ssh command to openssh to windows server/AD domain controller
 - will also output ldapsearch test command; openldap not installed on server

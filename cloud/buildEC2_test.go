@@ -44,10 +44,14 @@ func TestAuth(t *testing.T) {
 
 }
 
+func TestSetRegion(t *testing.T) {
+	SetRegion()
+}
+
 func TestGetImgID(t *testing.T) {
 	// Create a new AWS session with default configuration
 	CheckAuth()
-	CreateSession("us-west-2")
+	CreateSession()
 	err := GetSession().CreateServices()
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -66,7 +70,7 @@ func TestGetImgID(t *testing.T) {
 
 func TestGetVPC(t *testing.T) {
 	CheckAuth()
-	CreateSession("us-west-2")
+	CreateSession()
 	GetSession().CreateServices("ec2")
 	// Call the function under test
 	vpcID, err := GetVPC()
@@ -77,7 +81,7 @@ func TestGetVPC(t *testing.T) {
 
 func TestDescribeVPC(t *testing.T) {
 	CheckAuth()
-	CreateSession("us-west-2")
+	CreateSession()
 	GetSession().CreateServices("ec2")
 	vpcs, err := svc.ec2.DescribeVpcs(nil)
 	fmt.Println(vpcs)
@@ -89,7 +93,7 @@ func TestDescribeVPC(t *testing.T) {
 func TestCreateSG(t *testing.T) {
 	CheckAuth()
 	// Call the function under test
-	CreateSession("us-west-2")
+	CreateSession()
 	GetSession().CreateServices("ec2")
 
 	sgID, err := CreateSG()
@@ -135,7 +139,7 @@ func TestBuildEC2(t *testing.T) {
 func TestGetEC2ID(t *testing.T) {
 	CheckAuth()
 	// Call the function under test
-	CreateSession("us-west-2")
+	CreateSession()
 	GetSession().CreateServices("ec2")
 
 	ec2ID, err := GetEC2ID()
@@ -148,7 +152,7 @@ func TestGetEC2ID(t *testing.T) {
 func TestGetDNS(t *testing.T) {
 	CheckAuth()
 	// Call the function under test
-	CreateSession("us-west-2")
+	CreateSession()
 	err := GetSession().CreateServices("ec2")
 	if err != nil {
 		fmt.Println("Error creating svc", err)

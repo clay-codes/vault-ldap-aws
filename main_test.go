@@ -20,3 +20,4 @@ func TestBootStrap(t *testing.T) {
 	cloud.CheckAuth()
 	bootStrap()
 }
+

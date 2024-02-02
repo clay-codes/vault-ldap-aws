@@ -28,7 +28,8 @@ func init() {
 	cloud.CheckAuth()
 
 	// creating a session
-	if err := cloud.CreateSession("us-west-2"); err != nil {
+	cloud.SetRegion()
+	if err := cloud.CreateSession(); err != nil {
 		log.Fatal(err)
 	}
 
