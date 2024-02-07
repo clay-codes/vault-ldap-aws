@@ -22,7 +22,7 @@ brew install openldap
   
 
 #### Quick Setup Via Binary
-- binary compiled on Apple M1 Max 32gb
+- binary compiled Apple M1 ARM
 - owners of machine with same architecture just download `coolAD` and run `./coolAD` (may need chmod +x)
 - if mac throws a security message, go to System Settings -> Privacy & Security -> Open Anyway
 
